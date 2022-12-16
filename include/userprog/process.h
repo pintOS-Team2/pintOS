@@ -3,6 +3,8 @@
 
 #include "threads/thread.h"
 
+/* ELF types.  See [ELF1] 1-2. */
+
 tid_t process_create_initd (const char *file_name);
 tid_t process_fork (const char *name, struct intr_frame *if_);
 int process_exec (void *f_name);
