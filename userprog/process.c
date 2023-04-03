@@ -579,7 +579,7 @@ load (const char *file_name, struct intr_frame *if_) {
    success = true;
 
 done:
-   /* We arrive here whether the load is successful or not. */
+   /* We arrive here regardless of whether the loading works successful or not. */
    if (file){
       if (thread_current()->my_file){
          file_close(thread_current()->my_file);
