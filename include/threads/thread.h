@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -27,6 +28,10 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+#define ERROR_EXIT2 -2
+#define FDBASE 2
+#define FDLIMIT 32
 
 /* A kernel thread or user process.
  *
@@ -85,15 +90,36 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
-struct thread {
+
+struct child_info{
+	bool finished;
+	tid_t c_tid;
+	int c_exit_code;
+	struct list_elem c_elem;
+	struct semaphore c_sema;
+};
+
+struct thread
+{
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
-	enum thread_status status;          /* Thread state. */
+	enum thread_status status;          /* Thread state. 4가지 : ready, blocked, running, dying*/
 	char name[16];                      /* Name (for debugging purposes). */
+	int my_exit_code;
 	int priority;                       /* Priority. */
+	int init_priority;
 
-	/* Shared between thread.c and synch.c. */
+	bool do_fork_error;
+	int64_t wakeup_tick; /* Shared between thread.c and synch.c. */
+	struct lock* wait_on_lock;
+	struct thread *my_parent;
+	struct file *my_file;
+	struct child_info *my_info;
+	struct file* fd_table[FDLIMIT];          /* file descriptor(fd) table */
+	struct list_elem donation_elem;
 	struct list_elem elem;              /* List element. */
+	struct list child_list;
+	struct list donations;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -143,4 +169,22 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 
+void thread_sleep(int64_t ticks);
+void thread_awake(int64_t ticks);
+void update_next_tick_to_awake(int64_t ticks);
+int64_t get_next_tick_to_awake(void);
+
+char is_readylist_empty(void);
+int get_ready_list_max_priority(void);
+int destruction_req_contains(tid_t child_tid);
+
+void test_max_priority(void);
+bool cmp_priority(const struct list_elem *a_, const struct list_elem *b_,
+				  void *aux UNUSED);
+bool donate_cmp_priority(const struct list_elem *a_, const struct list_elem *b_,
+				  void *aux UNUSED);
+
+void donate_priority(void);
+void remove_with_lock(struct lock *lock);
+void refresh_priority(void);
 #endif /* threads/thread.h */
